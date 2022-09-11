@@ -1,16 +1,13 @@
 class ServerChannel < ApplicationCable::Channel
   def subscribed
-    self.prepare_map if server_empty?
-    initialize_server
+    initialize_server if server_empty?
 
-    puts "not initialized!" if @server.nil?
-    @server.join_player
+    Server.join_player(ActionCable.server.connections.length - 1)
     stream_from "server_channel"
     sleep(1)
-    ActionCable.server.broadcast("server_channel", { action: 'player_idx', idx: @server.game[:lobby].length - 1 }.to_json)
+    ActionCable.server.broadcast("server_channel", { action: 'player_idx', idx: Server.game[:lobby].length - 1 }.to_json)
     sleep(4)
-    # ActionCable.server.broadcast("server_channel", { action: 'game_update', map: @server.game[:map] }.to_json)
-    @server.start_game if server_empty?
+    Server.start_game if server_empty?
   end
 
   def self.game_update(data)
@@ -19,11 +16,6 @@ class ServerChannel < ApplicationCable::Channel
 
   def self.player_died(idx)
     ActionCable.server.broadcast("server_channel", { action: 'player_died', player_idx: idx }.to_json)
-  end
-
-  def test_connection
-    broadcast({ 'Game': true })
-    # puts data
   end
 
   def unsubscribed
@@ -35,11 +27,10 @@ class ServerChannel < ApplicationCable::Channel
   end
 
   def move_player(data)
-    Server.increase
     player_idx = data["player"]
     player_destination = { x: data['x'], y: data['y'] }
 
-    @server.move_player(player_idx, player_destination)
+    Server.move_player(player_idx, player_destination)
   end
 
   def set_bomb(data)
@@ -47,7 +38,7 @@ class ServerChannel < ApplicationCable::Channel
     bomb_destination = { x: data['x'], y: data['y'] }
 
     Thread.new do
-      @server.bomb_setup(bomb_destination, player_idx)
+      Server.bomb_setup(bomb_destination, player_idx)
     end
   end
 
@@ -67,8 +58,7 @@ class ServerChannel < ApplicationCable::Channel
   end
 
   def initialize_server
-    @server = Server.new
-    @server.init
+    Server.prepare_map
   end
 
   def broadcast(data)

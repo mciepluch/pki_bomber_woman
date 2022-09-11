@@ -23,8 +23,9 @@ gem 'puma', '~> 5.0'
 gem 'bootsnap', '>= 1.4.4', require: false
 gem 'jsonapi-serializer'
 
-gem 'devise'
+gem 'devise', '~> 4.7.3'
 gem 'devise-jwt'
+gem 'rack-cors'
 
 gem 'redis-rails'
 gem 'redlock'
