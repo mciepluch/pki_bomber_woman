@@ -6,16 +6,6 @@ class GameHelper
     # initialize_boxes
     empty_user_places(map)
     set_players(map)
-    #TODO: SENDING USER NAMES
-    #
-    #    const playersInGame = players.map((p) => ({
-    #       username: p.socket.user.username,
-    #       color: p.color,
-    #     }));
-    #
-    #     io.to("game").emit("playersInGame", playersInGame);
-    #
-    #     startGameLoop();
     map
   end
 
@@ -61,8 +51,6 @@ class GameHelper
     (0..GameConstants::MAX_PLAYERS - 1).each do |idx|
       player = GameConstants::STARTING_INFO[idx]
       map[player[:y]][player[:x]][:player] = player[:sprite]
-      # @game[:lobby][idx][:position] = { y: player[:y], x: player[:x] }
-      # @game[:lobby][idx][:sprite] = player[:sprite]
     end
   end
 

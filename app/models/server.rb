@@ -16,12 +16,13 @@ class Server
         started: false,
         starting: false,
         power_up_counter: 0,
-        map: GameHelper.prepare_game
+        map: GameHelper.prepare_game,
+        killed: 0
       }
   end
 
-  def self.join_player(idx)
-    @@game[:lobby] << PlayerHelper.join_player(idx)
+  def self.join_player(db_index)
+    @@game[:lobby].push(PlayerHelper.join_player(@@game[:lobby].length, db_index))
   end
 
   # --------------- Move Player Logic ---------------------------
@@ -54,7 +55,9 @@ class Server
     player[:dead] = true
     player_position[:position] = nil
     player_position[:player] = nil
-    ServerChannel.player_died(player_idx)
+    PlayerChannel.player_died(player[:db_index])
+    add_kill(player_position[:explosion]) if player_idx != player_position[:explosion]
+    PlayerHelper.update_db_user(player)
   end
 
   # --------------- Player Logic END ---------------------------
@@ -169,50 +172,51 @@ class Server
 
   def self.game_loop
     @@game[:lobby].each_with_index do |player, idx|
-      #TODO FIX DEAD!
       unless player[:dead]
         curr_position = get_map_element(player[:position])
+        remove_player(player, curr_position, idx) if curr_position[:explosion]
 
-        #check if user is in explosion
-        if curr_position[:explosion]
-
-          #check if user is inside self explosion
-
-          #cbeck whose explosion
-
-          remove_player(player, curr_position, idx)
-          #disconect player!
-        end
       end
     end
-    #
-    # #Consider reloging to statistics
-    # return if game_ended?
+    return ServerChannel.game_ended if game_ended?
+
     ServerChannel.game_update(@@game[:map])
-    #send game details!
-    sleep(3)
+    sleep(0.3)
     game_loop
   end
 
   def self.start_game
+    @@game[:started] = true
     Thread.new do
       game_loop
     end
   end
 
-  #TODO: POWERUP LOGIC
+  def self.add_kill(index)
+    @@game[:killed] += 1
+    player = @@game[:lobby][index]
+    player[:kills] += 1
+  end
 
-  def game_ended?
-    return false if game[:lobby].lenght <= 1
+  def self.update_win(player)
+    player[:won] += 1
+  end
 
-    #think about id
-    update_win(id) unless game[:lobby].first.nil?
+  def self.game_ended?
+    return false unless @@game[:killed] >= 3 || !ActionCable.server.connections.length
+
+    if @@game[:killed] == 3
+      player = @@game[:lobby].find { |player| !player[:dead] }
+      update_win(player)
+      PlayerHelper.update_db_user(player)
+    end
+
     end_game
     true
   end
 
-  def end_game
-    raise "Implement me!"
+  def self.end_game
+    # ActionCable.server.remote_connections.disconnect
   end
 
   private
