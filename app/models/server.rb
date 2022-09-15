@@ -18,7 +18,7 @@ class Server
         started: false,
         starting: false,
         power_up_counter: 0,
-        map: GameHelper.prepare_game,
+        map: Helpers::GameHelper.prepare_game,
         killed: 0
       }
   end
@@ -28,7 +28,7 @@ class Server
   end
 
   def self.join_player(db_index, username)
-    @@game[:lobby].push(PlayerHelper.join_player(@@game[:lobby].length, db_index, username))
+    @@game[:lobby].push(Helpers::PlayerHelper.join_player(@@game[:lobby].length, db_index, username))
   end
 
   # --------------- Move Player Logic ---------------------------
@@ -37,7 +37,7 @@ class Server
     player = @@game[:lobby][player_index]
     next_pos = get_new_position(player, move)
     next_map_pos = get_map_element(next_pos)
-    return unless PlayerHelper.validate_player_move(next_map_pos, next_pos)
+    return unless Helpers::PlayerHelper.validate_player_move(next_map_pos, next_pos)
 
     update_map_position(player[:position], next_pos, move, player[:sprite])
     assign_new_position_to_player(player, next_pos)
@@ -49,8 +49,8 @@ class Server
     prev_direction = prev_position[:direction]
 
     get_map_element(prev_point)[:player] = nil
-    new_direction = PlayerHelper.direction(move)
-    get_map_element(next_point)[:player] = { sprite: sprite, direction: PlayerHelper.direction(move), step: PlayerHelper.step(prev_step, prev_direction, new_direction) }
+    new_direction = Helpers::PlayerHelper.direction(move)
+    get_map_element(next_point)[:player] = { sprite: sprite, direction: Helpers::PlayerHelper.direction(move), step: Helpers::PlayerHelper.step(prev_step, prev_direction, new_direction) }
   end
 
   def self.assign_new_position_to_player(player, next_position)
@@ -66,9 +66,9 @@ class Server
     player[:dead] = true
     player_position[:position] = nil
     player_position[:player] = nil
-    PlayerChannel.player_died(player[:db_index])
+    Helpers::PlayerChannel.player_died(player[:db_index])
     add_kill(player_position[:explosion]) if player_idx != player_position[:explosion]
-    PlayerHelper.update_db_user(player)
+    Helpers::PlayerHelper.update_db_user(player)
   end
 
   # --------------- Player Logic END ---------------------------
@@ -79,7 +79,7 @@ class Server
     player = @@game[:lobby][player_idx]
     bomb_pos = get_new_position(player, destination)
     bomb_map_pos = get_map_element(bomb_pos)
-    return unless PlayerHelper.validate_player_move(bomb_map_pos, bomb_pos)
+    return unless Helpers::PlayerHelper.validate_player_move(bomb_map_pos, bomb_pos)
 
     add_bomb(bomb_map_pos)
 
@@ -226,7 +226,7 @@ class Server
     if @@game[:killed] == 3
       player = @@game[:lobby].find { |player| !player[:dead] }
       update_win(player)
-      PlayerHelper.update_db_user(player)
+      Helpers::PlayerHelper.update_db_user(player)
     end
 
     end_game
