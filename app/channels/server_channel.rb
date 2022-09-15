@@ -1,10 +1,17 @@
 class ServerChannel < ApplicationCable::Channel
+  after_subscribe :display_players
+
   def subscribed
     initialize_server if server_empty?
-    Server.join_player(current_user.id)
+    Server.join_player(current_user.id, current_user.email)
     stream_from "server_channel"
     sleep(1)
-    Server.start_game if server_empty?
+    # Server.start_game if server_ready_to_start?
+    Server.start_game
+  end
+
+  def display_players
+    ActionCable.server.broadcast("server_channel", { action: 'players', players: Server.players_info }.to_json)
   end
 
   def self.game_update(data)
@@ -12,7 +19,11 @@ class ServerChannel < ApplicationCable::Channel
   end
 
   def unsubscribed
-    # Any cleanup needed when channel is unsubscribed
+    if ActionCable.server.connections.length <= 2
+      Server.end_game
+      initialize_server
+    end
+      # Any cleanup needed when channel is unsubscribed
   end
 
   def game_map
@@ -46,7 +57,11 @@ class ServerChannel < ApplicationCable::Channel
   end
 
   def server_empty?
-    Server.game.empty? || !Server.game[:started]
+    Server.game.empty?
+  end
+
+  def server_ready_to_start?
+    Server.full_lobby?
   end
 
   def initialize_server

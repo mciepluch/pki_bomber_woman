@@ -3,7 +3,7 @@ class GameHelper
   def self.prepare_game
     map = self.initialize_map
     initialize_walls(map)
-    # initialize_boxes
+    initialize_boxes(map)
     empty_user_places(map)
     set_players(map)
     map
@@ -29,20 +29,20 @@ class GameHelper
   def self.initialize_walls(map)
     (0..GameConstants::MAP_SIZE).each do |y_idx|
       (0..GameConstants::MAP_SIZE).each do |x_idx|
-        map[y_idx][x_idx][:type] = GameConstants::HARD_WALL if !((y_idx + 1) % 2) && !((x_idx + 1) % 2)
+        map[y_idx][x_idx][:type] = GameConstants::HARD_WALL if (y_idx % 2) == 0 && (x_idx % 2) == 0
       end
     end
     map
   end
 
-  def initialize_boxes
+  def self.initialize_boxes(map)
     iterator = GameConstants::BOX_COUNT
-    while iterator
+    while iterator.positive?
       x = rand(GameConstants::MAP_SIZE)
       y = rand(GameConstants::MAP_SIZE)
       if map[y][x][:type] == GameConstants::EMPTY_PLACE
         map[y][x][:type] = GameConstants::BOX_PLACE
-        --iterator
+        iterator -= 1
       end
     end
   end
@@ -50,7 +50,7 @@ class GameHelper
   def self.set_players(map)
     (0..GameConstants::MAX_PLAYERS - 1).each do |idx|
       player = GameConstants::STARTING_INFO[idx]
-      map[player[:y]][player[:x]][:player] = player[:sprite]
+      map[player[:y]][player[:x]][:player] = { sprite: player[:sprite], direction: player[:direction], step: 1 }
     end
   end
 

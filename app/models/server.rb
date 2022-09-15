@@ -10,6 +10,8 @@ class Server
     @@game
   end
 
+  semaphore = Mutex.new
+
   def self.prepare_map
       @@game = {
         lobby: [],
@@ -21,25 +23,34 @@ class Server
       }
   end
 
-  def self.join_player(db_index)
-    @@game[:lobby].push(PlayerHelper.join_player(@@game[:lobby].length, db_index))
+  def self.full_lobby?
+    @@game[:lobby].length == 4
+  end
+
+  def self.join_player(db_index, username)
+    @@game[:lobby].push(PlayerHelper.join_player(@@game[:lobby].length, db_index, username))
   end
 
   # --------------- Move Player Logic ---------------------------
 
-  def self.move_player(player_index, destination)
+  def self.move_player(player_index, move)
     player = @@game[:lobby][player_index]
-    next_pos = get_new_position(player, destination)
+    next_pos = get_new_position(player, move)
     next_map_pos = get_map_element(next_pos)
     return unless PlayerHelper.validate_player_move(next_map_pos, next_pos)
 
-    update_map_position(player[:position], next_pos, player[:sprite])
+    update_map_position(player[:position], next_pos, move, player[:sprite])
     assign_new_position_to_player(player, next_pos)
   end
 
-  def self.update_map_position(source, destination, sprite)
-    get_map_element(source)[:player] = nil
-    get_map_element(destination)[:player] = sprite
+  def self.update_map_position(prev_point, next_point, move, sprite)
+    prev_position = get_map_element(prev_point)[:player]
+    prev_step = prev_position[:step]
+    prev_direction = prev_position[:direction]
+
+    get_map_element(prev_point)[:player] = nil
+    new_direction = PlayerHelper.direction(move)
+    get_map_element(next_point)[:player] = { sprite: sprite, direction: PlayerHelper.direction(move), step: PlayerHelper.step(prev_step, prev_direction, new_direction) }
   end
 
   def self.assign_new_position_to_player(player, next_position)
@@ -153,7 +164,10 @@ class Server
     curr_element = get_map_element(position)
     return false if curr_element[:type] == GameConstants::HARD_WALL
 
-    curr_element[:type] = GameConstants::EMPTY_PLACE if curr_element[:type] == GameConstants::BOX_PLACE
+    if curr_element[:type] == GameConstants::BOX_PLACE
+      curr_element[:type] = GameConstants::EMPTY_PLACE
+      return false
+    end
 
     curr_element[:explosion] = idx
     true
@@ -181,7 +195,7 @@ class Server
     return ServerChannel.game_ended if game_ended?
 
     ServerChannel.game_update(@@game[:map])
-    sleep(0.3)
+    sleep(0.2)
     game_loop
   end
 
@@ -198,12 +212,16 @@ class Server
     player[:kills] += 1
   end
 
+  def self.players_info
+    @@game[:lobby].map { |player| { email: player[:username], sprite: player[:sprite] } }
+  end
+
   def self.update_win(player)
     player[:won] += 1
   end
 
   def self.game_ended?
-    return false unless @@game[:killed] >= 3 || !ActionCable.server.connections.length
+    return false if @@game[:killed] < 3 && @@game[:started] && !ActionCable.server.connections.length.zero?
 
     if @@game[:killed] == 3
       player = @@game[:lobby].find { |player| !player[:dead] }
@@ -216,7 +234,7 @@ class Server
   end
 
   def self.end_game
-    # ActionCable.server.remote_connections.disconnect
+    @@game[:started] = false
   end
 
   private

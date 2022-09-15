@@ -1,9 +1,9 @@
 class PlayerHelper
-  def self.join_player(idx, db_index)
-    initialize_player(idx, db_index)
+  def self.join_player(idx, db_index, username)
+    initialize_player(idx, db_index, username)
   end
 
-  def self.initialize_player(idx, db_index)
+  def self.initialize_player(idx, db_index, username)
     player = GameConstants::STARTING_INFO[idx]
     {
       position: { x: player[:x], y: player[:y] },
@@ -13,6 +13,7 @@ class PlayerHelper
       dead: false,
       ready: true,
       won: 0,
+      username: username,
       db_index: db_index
     }
   end
@@ -34,6 +35,12 @@ class PlayerHelper
     user.kills += player[:kills]
     user.wins += player[:won]
     user.save
+  end
+
+  def self.step(curr_step, prev_direction, curr_direction)
+    return 1 if prev_direction != curr_direction
+
+    (curr_step + 1) % 3
   end
 
   def self.direction(move)
